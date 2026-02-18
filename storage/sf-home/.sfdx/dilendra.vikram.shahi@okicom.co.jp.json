@@ -1,0 +1,12 @@
+{
+  "accessToken": "c88380a2a08db2f9948abe8be63b357b24faa26b1a268cb3f6ce0c36be84e7bda2b2e312d5b13a74f98316d1ff3f34ff79b6d3c7a07cf571a249724fc601aacab93598d0e7f7b943b251b19ca806c5ae693b3bc8dab02fdea3990ddbaae32f4ad5fa89fffea8bff29223d5c84d49bcd0e478f95bbf5e:94387c8697f16016c21bcdbda7f09956",
+  "instanceUrl": "https://okicom.my.salesforce.com",
+  "orgId": "00D2w00000NKd4fEAD",
+  "username": "dilendra.vikram.shahi@okicom.co.jp",
+  "loginUrl": "https://login.salesforce.com",
+  "refreshToken": "604fb1d595291b5c6bfdb67ffe31225a7ce575cbf16a601abe3ce4cb60f53028a5593a470e93db332db5c28e750822e1d1752b49af20bab740c6817d3550441a2128a5044b21d152a08f124a8285b7262cd471fc02ccb5e2a934da847c:fbc24da90a9ecf005bcd6b05e095c2a7",
+  "clientId": "PlatformCLI",
+  "isDevHub": false,
+  "instanceApiVersion": "65.0",
+  "instanceApiVersionLastRetrieved": "2/18/2026, 2:20:44 PM"
+}
