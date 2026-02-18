@@ -1,7 +1,7 @@
 # Salesforce authentication
 
-For salesforce authentication we will be using Salesforce CLI as we do not have access to generate "CLIENT_ID" and "CLIENT_SECRET".
-So in order to install Salesforce CLI we will use the following link to download:
+For salesforce authentication we will be using Salesforce CLI as we do not have access to generate $\textcolor{blue}{\text{CLIENT ID}}$ and $\textcolor{blue}{\text{CLIENT SECRET}}$.
+So in order to install $\textcolor{red}{\text{Salesforce CLI}}$ we will use the following link to download:
 
 - [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli)
 
@@ -21,14 +21,14 @@ $\textcolor{red}{\text{Windows (PowerShell or CMD):}}$
 where sf
 ```
 
-Then it will return your Salesforce binary location. Then update your .env file as below:
+Then it will return your Salesforce binary location. Then update your $\textcolor{blue}{\text{.env}}$ file as below:
 
 ```
 SF_BINARY_LOCATION="/usr/local/bin/sf"
 SF_ALIAS_NAME="okicom"
 ```
 
-Then we will update our config/services.php file with this:
+Then we will update our $\textcolor{blue}{\text{config/services.php}}$ file with this:
 
 ```
 'salesforce' => [
@@ -37,7 +37,7 @@ Then we will update our config/services.php file with this:
 ],
 ```
 
-Then open your terminal and run the following command (each machine must do this once):
+Then open your terminal and run the following command $\textcolor{blue}{\text{(each machine must do this once)}}$:
 
 $\textcolor{red}{\text{macOS/Linux:}}$
 
