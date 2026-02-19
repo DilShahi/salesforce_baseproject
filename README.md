@@ -66,3 +66,29 @@ set SF_USE_GENERIC_UNIX_KEYCHAIN=true
 sf org login web --alias okicom
 
 ```
+
+# AWS BEDROCK Integration
+
+We will use the AWS SDK for integrating AWS Bedrock in our application. We will integrate it with the following command:
+
+```
+composer require aws/aws-sdk-php
+```
+
+Then we will add the following in our environment variable (.env):
+
+```
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+AWS_REGION=your_aws_region
+```
+
+Add this in your configuration file config/session.php as below:
+
+```
+'awsbedrock' => [
+    'accessKey' => env('AWS_ACCESS_KEY_ID'),
+    'secretAccessKey' => env('AWS_SECRET_ACCESS_KEY'),
+    'region' => env('AWS_DEFAULT_REGION')
+]
+```

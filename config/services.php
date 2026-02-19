@@ -40,4 +40,14 @@ return [
         'alias_name' => env('SF_ALIAS_NAME'),
     ],
 
+    'awsbedrock' => [
+        'accessKey' => env('AWS_ACCESS_KEY_ID'),
+        'secretAccessKey' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION'),
+        'modelId' => env('BEDROCK_MODEL_ID'),
+        'max_tokens' => env('BEDROCK_MAX_TOKENS', 32000),
+        'temperature' => env('BEDROCK_TEMPERATURE', 1),
+        'top_k' => env('BEDROCK_TOP_K', 250),
+    ],
+
 ];
