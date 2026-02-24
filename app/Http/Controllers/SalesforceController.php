@@ -62,4 +62,16 @@ class SalesforceController extends Controller
 
         return redirect('/');
     }
+
+    public function logout(Request $request)
+    {
+        $request->session()->forget([
+            'sf_access_token',
+            'sf_refresh_token',
+            'sf_instance_url',
+            'sf_oauth_state',
+        ]);
+
+        return redirect()->route('home');
+    }
 }

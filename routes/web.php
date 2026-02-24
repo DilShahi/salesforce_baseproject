@@ -10,6 +10,7 @@ Route::get('/', function () {
 
 Route::get('/oauth/salesforce/redirect', [SalesforceController::class, 'redirect'])->name('sf.redirect');
 Route::get('/oauth/salesforce/callback', [SalesforceController::class, 'callback'])->name('sf.callback');
+Route::post('/oauth/salesforce/logout', [SalesforceController::class, 'logout'])->name('sf.logout');
 
 Route::get('/user/list', [UserController::class, 'userlist'])->name('salesforce.userlist');
 Route::get('/user/{userId}/mitoco', [UserController::class, 'userevent'])->name('salesforce.user.event');

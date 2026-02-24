@@ -108,13 +108,4 @@ class UserController extends Controller
 
         return is_array($decoded) ? $decoded : null;
     }
-
-    private function participantEventsResponse(string $userId): JsonResponse|Response
-    {
-        $query = "SELECT Id, Subject, StartDateTime, EndDateTime FROM Event WHERE Id IN (SELECT EventId FROM EventRelation WHERE RelationId = '{$userId}') ORDER BY StartDateTime DESC LIMIT 50";
-
-        $helper = new SalesforceConfiguration;
-
-        return $helper->runcommand($query);
-    }
 }
