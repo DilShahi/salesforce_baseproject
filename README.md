@@ -92,3 +92,5 @@ Add this in your configuration file config/session.php as below:
     'region' => env('AWS_DEFAULT_REGION')
 ]
 ```
+
+http://127.0.0.1:8000/oauth/salesforce/callback

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\AWSBedrockService;
 use App\Services\SalesforceConfiguration;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
@@ -12,9 +13,10 @@ class UserController extends Controller
 {
     public function userlist(): View|JsonResponse|Response
     {
-        $sfSetup = new SalesforceConfiguration;
+        $helper = new SalesforceConfiguration;
         $query = 'SELECT Id, Name, Username, Email, IsActive FROM User';
-        $response = $sfSetup->runcommand($query);
+        $response = $helper->runcommand($query);
+
         if (request()->boolean('debug')) {
             return $response;
         }
@@ -27,69 +29,92 @@ class UserController extends Controller
         }
 
         return view('salesforce.userlist', [
-            'users' => $payload,
+            'users' => $payload['records'] ?? [],
         ]);
     }
 
     public function userevent(string $userId): View|JsonResponse|Response
     {
-        $participantResponse = $this->participantEventsResponse($userId);
-
-        if (request()->boolean('debug')) {
-            return $participantResponse;
-        }
-
-        $participantPayload = $participantResponse->getData(true);
-        if (($participantResponse->getStatusCode() ?? 500) !== 200 || isset($participantPayload['error'])) {
-            return response()->view('salesforce.user-events', [
-                'error' => $participantPayload['error'] ?? 'Could not fetch mitoco events',
-            ], $participantResponse->getStatusCode() ?? 500);
-        }
-
-        $bedrock = new AWSBedrockService;
-        $summary = $bedrock->summarizeEvents($participantPayload);
-
-        return view('salesforce.user-events', [
-            'events' => $participantPayload,
-            'userId' => $userId,
-            'summary' => $summary
-        ]);
-    }
-
-    // public function eventssummary(string $userId): View|JsonResponse|Response
-    // {
-    //     $participantResponse = $this->participantEventsResponse($userId);
-
-    //     if (request()->boolean('debug')) {
-    //         return $participantResponse;
-    //     }
-
-    //     $participantPayload = $participantResponse->getData(true);
-    //     if (($participantResponse->getStatusCode() ?? 500) !== 200 || isset($participantPayload['error'])) {
-    //         return response()->view('salesforce.user-events', [
-    //             'error' => $participantPayload['error'] ?? 'Could not fetch mitoco events',
-    //         ], $participantResponse->getStatusCode() ?? 500);
-    //     }
-
-    //     $bedrock = new AWSBedrockService;
-    //     $summary = $bedrock->summarizeEvents($participantPayload);
-
-    //     return view('salesforce.user-events', [
-    //         'events' => $participantPayload,
-    //         'summary' => $summary,
-    //         'userId' => $userId,
-    //     ]);
-    // }
-
-    private function participantEventsResponse(string $userId): JsonResponse|Response
-    {
         if (! preg_match('/^[a-zA-Z0-9]{15,18}$/', $userId)) {
             return response()->json(['error' => 'Invalid user id.'], 400);
         }
+        $query = "SELECT Id, Subject, StartDateTime, EndDateTime FROM Event WHERE Id IN (SELECT EventId FROM EventRelation WHERE RelationId = '{$userId}') ORDER BY StartDateTime DESC LIMIT 50";
 
-        $sfSetup = new SalesforceConfiguration;
-        $participantQuery = "SELECT Id, Subject, StartDateTime, EndDateTime FROM Event WHERE Id IN (SELECT EventId FROM EventRelation WHERE RelationId = '{$userId}') ORDER BY StartDateTime DESC LIMIT 50";
+        $helper = new SalesforceConfiguration;
+        $response = $helper->runcommand($query);
 
-        return $sfSetup->runcommand($participantQuery);
+        if (request()->boolean('debug')) {
+            return $response;
+        }
+
+        $participantPayload = $response->getData(true);
+        if (($response->getStatusCode() ?? 500) !== 200 || isset($participantPayload['error'])) {
+            return response()->view('salesforce.user-events', [
+                'error' => $participantPayload['error'] ?? 'Could not fetch mitoco events',
+            ], $response->getStatusCode() ?? 500);
+        }
+
+        return view('salesforce.user-events', [
+            'events' => $participantPayload['records'] ?? [],
+            'userId' => $userId,
+        ]);
+    }
+
+    public function eventsummary(Request $request, string $userId): View|JsonResponse|Response
+    {
+        if (! preg_match('/^[a-zA-Z0-9]{15,18}$/', $userId)) {
+            return response()->view('salesforce.user-events', [
+                'error' => 'Invalid user id.',
+            ], 400);
+        }
+
+        $events = $this->eventsFromRequest($request);
+        if (! is_array($events)) {
+            return response()->view('salesforce.user-events', [
+                'error' => 'Invalid events payload.',
+            ], 422);
+        }
+
+        if ($events === []) {
+            return response()->view('salesforce.user-events', [
+                'error' => 'No events provided. Please refresh the events page and try again.',
+            ], 422);
+        }
+
+        $bedrock = new AWSBedrockService;
+        $summary = $bedrock->summarizeEvents($events);
+
+        return view('salesforce.user-events-summary', [
+            'summary' => $summary,
+            'userId' => $userId,
+        ]);
+    }
+
+    private function eventsFromRequest(Request $request): ?array
+    {
+        $raw = $request->input('events');
+        if ($raw === null) {
+            return [];
+        }
+
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        $decoded = json_decode((string) $raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return null;
+        }
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function participantEventsResponse(string $userId): JsonResponse|Response
+    {
+        $query = "SELECT Id, Subject, StartDateTime, EndDateTime FROM Event WHERE Id IN (SELECT EventId FROM EventRelation WHERE RelationId = '{$userId}') ORDER BY StartDateTime DESC LIMIT 50";
+
+        $helper = new SalesforceConfiguration;
+
+        return $helper->runcommand($query);
     }
 }

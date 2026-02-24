@@ -3,13 +3,14 @@
     <main style="max-width: 960px; margin: 40px auto; font-family: Arial, sans-serif;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
             <h1 style="margin-bottom: 16px;">Mitoco Events</h1>
-            {{-- <form method="POST" action="{{ route('salesforce.user.event.summary', ['userId' => $userId]) }}">
+            <form method="POST" action="{{ route('salesforce.user.event.summary', ['userId' => $userId]) }}">
                 @csrf
+                <textarea name="events" hidden>@json($events ?? [])</textarea>
                 <button type="submit"
                     style="display: inline-block; padding: 6px 10px; border: 1px solid #111827; background: #ffffff; color: #111827; border-radius: 4px; text-decoration: none;">
                     Get Summary
                 </button>
-            </form> --}}
+            </form>
             <a href="{{ route('salesforce.userlist') }}"
                 style="display: inline-block; padding: 6px 10px; border: 1px solid #111827; background: #ffffff; color: #111827; border-radius: 4px; text-decoration: none;">
                 Back to Users

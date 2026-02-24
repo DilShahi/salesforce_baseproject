@@ -36,6 +36,12 @@ return [
     ],
 
     'salesforce' => [
+        'login_url' => env('SF_LOGIN_URL', 'https://login.salesforce.com'),
+        'client_id' => env('SF_CLIENT_ID'),
+        'client_secret' => env('SF_CLIENT_SECRET'),
+        'redirect_uri' => env('SF_REDIRECT_URI'),
+        'scopes' => env('SF_SCOPES', 'refresh_token api'),
+        'api_version' => env('SF_API_VERSION', 'v59.0'),
         'binary_location' => env('SF_BINARY_LOCATION'),
         'alias_name' => env('SF_ALIAS_NAME'),
     ],
