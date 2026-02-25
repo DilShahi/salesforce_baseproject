@@ -38,7 +38,10 @@ class UserController extends Controller
         if (! preg_match('/^[a-zA-Z0-9]{15,18}$/', $userId)) {
             return response()->json(['error' => 'Invalid user id.'], 400);
         }
-        $query = "SELECT Id, Subject, StartDateTime, EndDateTime FROM Event WHERE Id IN (SELECT EventId FROM EventRelation WHERE RelationId = '{$userId}') ORDER BY StartDateTime DESC LIMIT 50";
+
+        //  sf data query -o okicom --query "SELECT ID, Subject FROM Event WHERE OwnerId='0052w00000I2QypAAF' ORDER BY StartDateTime DESC"
+        // $query = "SELECT Id, Subject, StartDateTime, EndDateTime FROM Event WHERE Id IN (SELECT EventId FROM EventRelation WHERE RelationId = '{$userId}') ORDER BY StartDateTime DESC LIMIT 50";
+        $query = "SELECT Id, Subject, StartDateTime, EndDateTime from Event WHERE OwnerId='{$userId}' ORDER BY StartDateTime DESC";
 
         $helper = new SalesforceConfiguration;
         $response = $helper->runcommand($query);
