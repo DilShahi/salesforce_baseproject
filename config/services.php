@@ -51,9 +51,14 @@ return [
         'secretAccessKey' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION'),
         'modelId' => env('BEDROCK_MODEL_ID'),
-        'max_tokens' => env('BEDROCK_MAX_TOKENS', 32000),
+        'max_tokens' => env('BEDROCK_MAX_TOKENS', 4096),
         'temperature' => env('BEDROCK_TEMPERATURE', 1),
         'top_k' => env('BEDROCK_TOP_K', 250),
+        'connect_timeout' => env('BEDROCK_CONNECT_TIMEOUT', 5),
+        'request_timeout' => env('BEDROCK_REQUEST_TIMEOUT', 20),
+        'retries' => env('BEDROCK_RETRIES', 1),
+        'max_events' => env('BEDROCK_MAX_EVENTS', 80),
+        'max_prompt_chars' => env('BEDROCK_MAX_PROMPT_CHARS', 120000),
     ],
 
 ];

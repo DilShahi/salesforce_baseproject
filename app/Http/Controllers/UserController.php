@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UserEventsDateRangeRequest;
 use App\Services\AWSBedrockService;
 use App\Services\SalesforceConfiguration;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -33,15 +35,43 @@ class UserController extends Controller
         ]);
     }
 
-    public function userevent(string $userId): View|JsonResponse|Response
+    public function userevent(UserEventsDateRangeRequest $request, string $userId): View|JsonResponse|Response
     {
         if (! preg_match('/^[a-zA-Z0-9]{15,18}$/', $userId)) {
             return response()->json(['error' => 'Invalid user id.'], 400);
         }
 
-        //  sf data query -o okicom --query "SELECT ID, Subject FROM Event WHERE OwnerId='0052w00000I2QypAAF' ORDER BY StartDateTime DESC"
-        // $query = "SELECT Id, Subject, StartDateTime, EndDateTime FROM Event WHERE Id IN (SELECT EventId FROM EventRelation WHERE RelationId = '{$userId}') ORDER BY StartDateTime DESC LIMIT 50";
-        $query = "SELECT Id, Subject, StartDateTime, EndDateTime from Event WHERE OwnerId='{$userId}' ORDER BY StartDateTime DESC";
+        $startDate = $request->validated('start_date');
+        $endDate = $request->validated('end_date');
+        $hasSubmittedDates = $request->filled(['start_date', 'end_date']);
+
+        if (! $hasSubmittedDates) {
+            return view('salesforce.user-events', [
+                'userId' => $userId,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'hasSubmittedDates' => false,
+            ]);
+        }
+
+        $conditions = ["OwnerId='{$userId}'"];
+
+        if ($startDate !== null) {
+            $startDateTime = CarbonImmutable::parse($startDate, 'UTC')
+                ->startOfDay()
+                ->format('Y-m-d\TH:i:s\Z');
+            $conditions[] = "StartDateTime >= {$startDateTime}";
+        }
+
+        if ($endDate !== null) {
+            $endDateTime = CarbonImmutable::parse($endDate, 'UTC')
+                ->endOfDay()
+                ->format('Y-m-d\TH:i:s\Z');
+            $conditions[] = "EndDateTime <= {$endDateTime}";
+        }
+
+        $whereClause = implode(' AND ', $conditions);
+        $query = "SELECT Id, Subject, StartDateTime, EndDateTime from Event WHERE {$whereClause} ORDER BY StartDateTime DESC";
 
         $helper = new SalesforceConfiguration;
         $response = $helper->runcommand($query);
@@ -53,13 +83,20 @@ class UserController extends Controller
         $participantPayload = $response->getData(true);
         if (($response->getStatusCode() ?? 500) !== 200 || isset($participantPayload['error'])) {
             return response()->view('salesforce.user-events', [
-                'error' => $participantPayload['error'] ?? 'Could not fetch mitoco events',
+                'error' => $this->salesforceErrorMessage($participantPayload),
+                'userId' => $userId,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'hasSubmittedDates' => true,
             ], $response->getStatusCode() ?? 500);
         }
 
         return view('salesforce.user-events', [
             'events' => $participantPayload['records'] ?? [],
             'userId' => $userId,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'hasSubmittedDates' => true,
         ]);
     }
 
@@ -86,9 +123,42 @@ class UserController extends Controller
 
         $bedrock = new AWSBedrockService;
         $summary = $bedrock->summarizeEvents($events);
+        if (str_starts_with($summary, 'Error:')) {
+            return response()->view('salesforce.user-events', [
+                'error' => $summary,
+                'events' => $events,
+                'userId' => $userId,
+                'hasSubmittedDates' => true,
+            ], 422);
+        }
+
+        $summaryData = $this->decodeSummaryJson($summary);
+        if ($summaryData === null) {
+            return response()->view('salesforce.user-events', [
+                'error' => 'Summary response is not valid JSON. Please try again.',
+                'events' => $events,
+                'userId' => $userId,
+                'hasSubmittedDates' => true,
+            ], 422);
+        }
+
+        $chartData = $this->buildChartData($summaryData);
+        if ($chartData === null) {
+            return response()->view('salesforce.user-events', [
+                'error' => 'Summary JSON does not contain categories with counts.',
+                'events' => $events,
+                'userId' => $userId,
+                'hasSubmittedDates' => true,
+            ], 422);
+        }
+
+        $summaryText = $this->buildSummaryText($summaryData, $chartData['labels'], $chartData['counts']);
 
         return view('salesforce.user-events-summary', [
             'summary' => $summary,
+            'summaryText' => $summaryText,
+            'chartLabels' => $chartData['labels'],
+            'chartCounts' => $chartData['counts'],
             'userId' => $userId,
         ]);
     }
@@ -110,5 +180,105 @@ class UserController extends Controller
         }
 
         return is_array($decoded) ? $decoded : null;
+    }
+
+    private function salesforceErrorMessage(array $payload): string
+    {
+        if (isset($payload['error']) && is_string($payload['error'])) {
+            return $payload['error'];
+        }
+
+        if (isset($payload[0]['message']) && is_string($payload[0]['message'])) {
+            return $payload[0]['message'];
+        }
+
+        return 'Could not fetch mitoco events';
+    }
+
+    private function decodeSummaryJson(string $summary): ?array
+    {
+        $decoded = json_decode($summary, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        if (preg_match('/```json\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*```/i', $summary, $matches) === 1) {
+            $decodedFromFence = json_decode($matches[1], true);
+
+            return is_array($decodedFromFence) ? $decodedFromFence : null;
+        }
+
+        if (preg_match('/(\{[\s\S]*\}|\[[\s\S]*\])/', $summary, $matches) === 1) {
+            $decodedFromText = json_decode($matches[1], true);
+
+            return is_array($decodedFromText) ? $decodedFromText : null;
+        }
+
+        return null;
+    }
+
+    private function buildChartData(array $summaryData): ?array
+    {
+        $categories = $summaryData['categories'] ?? null;
+        if (! is_array($categories) || $categories === []) {
+            return null;
+        }
+
+        $labels = [];
+        $counts = [];
+
+        foreach ($categories as $category) {
+            if (! is_array($category)) {
+                continue;
+            }
+
+            $name = $category['name'] ?? null;
+            $count = $category['count'] ?? null;
+
+            if (! is_string($name) || $name === '') {
+                continue;
+            }
+
+            if (! is_numeric($count)) {
+                continue;
+            }
+
+            $labels[] = $name;
+            $counts[] = (int) $count;
+        }
+
+        if ($labels === [] || $counts === []) {
+            return null;
+        }
+
+        return [
+            'labels' => $labels,
+            'counts' => $counts,
+        ];
+    }
+
+    private function buildSummaryText(array $summaryData, array $labels, array $counts): string
+    {
+        $overview = $summaryData['overview'] ?? null;
+        $lines = [];
+
+        if (is_string($overview) && trim($overview) !== '') {
+            $lines[] = trim($overview);
+        }
+
+        foreach ($labels as $index => $label) {
+            $count = $counts[$index] ?? null;
+            if (! is_int($count)) {
+                continue;
+            }
+
+            $lines[] = $label.': '.$count;
+        }
+
+        if ($lines === []) {
+            return 'Summary generated successfully.';
+        }
+
+        return implode("\n", $lines);
     }
 }

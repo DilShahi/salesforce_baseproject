@@ -9,12 +9,56 @@
             </a>
         </div>
 
-        @if (!empty($summary))
+        @if (!empty($summaryText))
             <div
                 style="padding: 12px; background: #eef2ff; color: #1e1b4b; border: 1px solid #c7d2fe; margin-bottom: 16px;">
                 <strong>Summary</strong>
-                <div style="white-space: pre-wrap; margin-top: 8px;">{{ $summary }}</div>
+                <div style="white-space: pre-wrap; margin-top: 8px;">{{ $summaryText }}</div>
             </div>
         @endif
+
+        @if (!empty($chartLabels) && !empty($chartCounts))
+            <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px;">
+                <strong>Event Categories</strong>
+                <canvas id="eventSummaryChart" style="margin-top: 12px;"></canvas>
+            </div>
+        @endif
+
     </main>
+
+    @if (!empty($chartLabels) && !empty($chartCounts))
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            const chartLabels = @json($chartLabels);
+            const chartCounts = @json($chartCounts);
+            const chartElement = document.getElementById('eventSummaryChart');
+
+            if (chartElement) {
+                new Chart(chartElement, {
+                    type: 'bar',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Events',
+                            data: chartCounts,
+                            backgroundColor: '#60a5fa',
+                            borderColor: '#2563eb',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        </script>
+    @endif
 </x-layout>
