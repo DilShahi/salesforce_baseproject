@@ -15,10 +15,10 @@ class AWSBedrockService
         $clientConfiguration = [
             'region' => config('services.awsbedrock.region'),
             'version' => 'latest',
-            'retries' => (int) config('services.awsbedrock.retries', 1),
+            'retries' => max((int) config('services.awsbedrock.retries', 0), 0),
             'http' => [
-                'connect_timeout' => (float) config('services.awsbedrock.connect_timeout', 5),
-                'timeout' => (float) config('services.awsbedrock.request_timeout', 20),
+                'connect_timeout' => $this->resolveConnectTimeout(),
+                'timeout' => $this->resolveRequestTimeout(),
             ],
         ];
 
@@ -35,12 +35,34 @@ class AWSBedrockService
         $this->client = new BedrockRuntimeClient($clientConfiguration);
     }
 
+    private function resolveRequestTimeout(): float
+    {
+        $configuredTimeout = (float) config('services.awsbedrock.request_timeout', 20);
+        $maxExecutionTime = (int) ini_get('max_execution_time');
+
+        if ($maxExecutionTime <= 0) {
+            return $configuredTimeout;
+        }
+
+        $safeTimeout = max($maxExecutionTime - 5, 1);
+
+        return min($configuredTimeout, (float) $safeTimeout);
+    }
+
+    private function resolveConnectTimeout(): float
+    {
+        $configuredConnectTimeout = (float) config('services.awsbedrock.connect_timeout', 5);
+        $safeRequestTimeout = $this->resolveRequestTimeout();
+
+        return min($configuredConnectTimeout, max($safeRequestTimeout - 1, 1));
+    }
+
     public function invokeClaude(string $prompt, ?string $systemPrompt = null): string
     {
         $payload = [
             'anthropic_version' => 'bedrock-2023-05-31',
             'max_tokens' => (int) config('services.awsbedrock.max_tokens', 4096),
-            'system' => $systemPrompt ?? 'You are given event data JSON. Return only valid JSON with this shape: {"overview":"short text","categories":[{"name":"category name","count":number}]}. Do not include markdown, code fences, or extra keys.',
+            'system' => $systemPrompt ?? 'You are given event data JSON. Return only valid JSON with this shape: {"overview":"short text","categories":[{"name":"category name","count":number,"events":[{"subject":"event subject","startDateTime":"ISO datetime or empty string","endDateTime":"ISO datetime or empty string"}]}]}. Ensure count matches events length for each category. Do not include markdown, code fences, or extra keys.',
             'messages' => [
                 [
                     'role' => 'user',

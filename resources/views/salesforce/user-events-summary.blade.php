@@ -17,12 +17,45 @@
             </div>
         @endif
 
+        @if (!empty($categoryDetails))
+            <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px;">
+                <strong>Categorized Events</strong>
+                @foreach ($categoryDetails as $category)
+                    <details
+                        style="margin-top: 12px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; background: #ffffff;">
+                        <summary style="cursor: pointer; font-weight: 600;">
+                            {{ $category['name'] }} ({{ $category['count'] }})
+                        </summary>
+                        @if (!empty($category['events']))
+                            <ul style="margin-top: 10px; padding-left: 18px;">
+                                @foreach ($category['events'] as $event)
+                                    <li style="margin-bottom: 8px;">
+                                        <div>{{ $event['subject'] }}</div>
+                                        @if (!empty($event['startDateTime']) || !empty($event['endDateTime']))
+                                            <div style="font-size: 12px; color: #4b5563;">
+                                                {{ $event['startDateTime'] ?: '-' }} to
+                                                {{ $event['endDateTime'] ?: '-' }}
+                                            </div>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @else
+                            <div style="margin-top: 8px; font-size: 14px; color: #6b7280;">No events listed.</div>
+                        @endif
+                    </details>
+                @endforeach
+            </div>
+        @endif
+
         @if (!empty($chartLabels) && !empty($chartCounts))
             <div style="padding: 16px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px;">
                 <strong>Event Categories</strong>
                 <canvas id="eventSummaryChart" style="margin-top: 12px;"></canvas>
             </div>
         @endif
+
+
 
     </main>
 

@@ -102,6 +102,8 @@ class UserController extends Controller
 
     public function eventsummary(Request $request, string $userId): View|JsonResponse|Response
     {
+        $this->extendSummaryExecutionTime();
+
         if (! preg_match('/^[a-zA-Z0-9]{15,18}$/', $userId)) {
             return response()->view('salesforce.user-events', [
                 'error' => 'Invalid user id.',
@@ -153,12 +155,14 @@ class UserController extends Controller
         }
 
         $summaryText = $this->buildSummaryText($summaryData, $chartData['labels'], $chartData['counts']);
+        $categoryDetails = $this->buildCategoryDetails($summaryData);
 
         return view('salesforce.user-events-summary', [
             'summary' => $summary,
             'summaryText' => $summaryText,
             'chartLabels' => $chartData['labels'],
             'chartCounts' => $chartData['counts'],
+            'categoryDetails' => $categoryDetails,
             'userId' => $userId,
         ]);
     }
@@ -280,5 +284,77 @@ class UserController extends Controller
         }
 
         return implode("\n", $lines);
+    }
+
+    private function buildCategoryDetails(array $summaryData): array
+    {
+        $categories = $summaryData['categories'] ?? null;
+        if (! is_array($categories)) {
+            return [];
+        }
+
+        $categoryDetails = [];
+
+        foreach ($categories as $category) {
+            if (! is_array($category)) {
+                continue;
+            }
+
+            $name = $category['name'] ?? null;
+            $count = $category['count'] ?? null;
+            $events = $category['events'] ?? [];
+
+            if (! is_string($name) || $name === '' || ! is_numeric($count) || ! is_array($events)) {
+                continue;
+            }
+
+            $normalizedEvents = [];
+
+            foreach ($events as $event) {
+                if (! is_array($event)) {
+                    continue;
+                }
+
+                $subject = $event['subject'] ?? null;
+                $startDateTime = $event['startDateTime'] ?? '';
+                $endDateTime = $event['endDateTime'] ?? '';
+
+                if (! is_string($subject) || $subject === '') {
+                    continue;
+                }
+
+                $normalizedEvents[] = [
+                    'subject' => $subject,
+                    'startDateTime' => is_string($startDateTime) ? $startDateTime : '',
+                    'endDateTime' => is_string($endDateTime) ? $endDateTime : '',
+                ];
+            }
+
+            $categoryDetails[] = [
+                'name' => $name,
+                'count' => (int) $count,
+                'events' => $normalizedEvents,
+            ];
+        }
+
+        return $categoryDetails;
+    }
+
+    private function extendSummaryExecutionTime(): void
+    {
+        $configuredExecutionTime = (int) config('services.awsbedrock.php_execution_time', 240);
+        if ($configuredExecutionTime <= 0) {
+            return;
+        }
+
+        $currentExecutionTime = (int) ini_get('max_execution_time');
+        if ($currentExecutionTime > 0 && $currentExecutionTime >= $configuredExecutionTime) {
+            return;
+        }
+
+        @ini_set('max_execution_time', (string) $configuredExecutionTime);
+        if (function_exists('set_time_limit')) {
+            @set_time_limit($configuredExecutionTime);
+        }
     }
 }
